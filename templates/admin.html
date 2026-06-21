@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Camera Honeypot Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #111;
+            color: #eee;
+            padding: 30px;
+        }
+
+        h1, h2 {
+            color: #f5f5f5;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 40px;
+            background: #1c1c1c;
+        }
+
+        th, td {
+            border: 1px solid #333;
+            padding: 10px;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th {
+            background: #222;
+            color: #fff;
+        }
+
+        tr:nth-child(even) {
+            background: #181818;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Camera Honeypot Dashboard</h1>
+
+<h2>Recent Login Attempts</h2>
+
+<table>
+    <tr>
+        <th>Time</th>
+        <th>Source IP</th>
+        <th>Username</th>
+        <th>Password</th>
+        <th>User Agent</th>
+    </tr>
+
+    {% for attempt in login_attempts %}
+    <tr>
+        <td>{{ attempt["timestamp"] }}</td>
+        <td>{{ attempt["source_ip"] }}</td>
+        <td>{{ attempt["username"] }}</td>
+        <td>{{ attempt["password"] }}</td>
+        <td>{{ attempt["user_agent"] }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+<h2>Recent Page Visits</h2>
+
+<table>
+    <tr>
+        <th>Time</th>
+        <th>Source IP</th>
+        <th>User Agent</th>
+    </tr>
+
+    {% for visit in page_visits %}
+    <tr>
+        <td>{{ visit["timestamp"] }}</td>
+        <td>{{ visit["source_ip"] }}</td>
+        <td>{{ visit["user_agent"] }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+</body>
+</html>
