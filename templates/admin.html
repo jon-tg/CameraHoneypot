@@ -51,6 +51,9 @@
         <th>Username</th>
         <th>Password</th>
         <th>User Agent</th>
+        <th>Type</th>
+        <th>Referrer</th>
+
     </tr>
 
     {% for attempt in login_attempts %}
@@ -60,6 +63,8 @@
         <td>{{ attempt["username"] }}</td>
         <td>{{ attempt["password"] }}</td>
         <td>{{ attempt["user_agent"] }}</td>
+        <td>{{ attempt["type"] }}</td>
+        <td>{{ attempt["referrer"] }}</td>
     </tr>
     {% endfor %}
 </table>
@@ -80,6 +85,38 @@
         <td>{{ visit["user_agent"] }}</td>
     </tr>
     {% endfor %}
+</table>
+
+<h2>Network Events</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>Time</th>
+            <th>Event</th>
+            <th>Source IP</th>
+            <th>Source MAC</th>
+            <th>Destination IP</th>
+            <th>Port</th>
+            <th>Protocol</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for event in network_events %}
+        <tr>
+            <td>{{ event.timestamp }}</td>
+            <td>{{ event.event_type }}</td>
+            <td>{{ event.source_ip }}</td>
+            <td>{{ event.source_mac }}</td>
+            <td>{{ event.destination_ip }}</td>
+            <td>{{ event.destination_port }}</td>
+            <td>{{ event.protocol }}</td>
+            <td>{{ event.description }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
 </table>
 
 </body>
