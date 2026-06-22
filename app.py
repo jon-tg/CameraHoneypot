@@ -72,7 +72,7 @@ def init_db():
     conn.close()
 
 def log_network_event(event_type, source_ip=None, source_mac=None, destination_ip=None, destination_port=None, protocol=None, description=None):
-    conn = sqlite3.connect("honeypot.db")
+    conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -219,7 +219,7 @@ def start_scapy_monitor():
     )
 
 def get_dashboard_data():
-    conn = sqlite3.connect("honeypot.db")
+    conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
@@ -241,7 +241,7 @@ def get_dashboard_data():
         SELECT *
         FROM network_events
         ORDER BY timestamp DESC
-        LIMIT 100
+        LIMIT 25
     """)
     network_events = cursor.fetchall()
 
