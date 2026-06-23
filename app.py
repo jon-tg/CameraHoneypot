@@ -22,9 +22,6 @@ seen_devices = {}
 port_activity = defaultdict(list)
 syn_activity = defaultdict(list)
 
-PORT_SCAN_THRESHOLD = 5
-PORT_SCAN_WINDOW = 10
-
 SYN_FLOOD_THRESHOLD = 20
 SYN_FLOOD_WINDOW = 10
 

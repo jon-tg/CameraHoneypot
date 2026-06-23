@@ -100,6 +100,7 @@
             <th>Port</th>
             <th>Protocol</th>
             <th>Description</th>
+            <th>Severity</th>
         </tr>
     </thead>
 
@@ -114,6 +115,7 @@
             <td>{{ event.destination_port }}</td>
             <td>{{ event.protocol }}</td>
             <td>{{ event.description }}</td>
+            <td>{{event.severity }}</td>
         </tr>
         {% endfor %}
     </tbody>
