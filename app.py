@@ -56,31 +56,41 @@ def init_db():
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS network_events (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT NOT NULL,
-            event_type TEXT,
-            source_ip TEXT,
-            source_mac TEXT,
-            destination_ip TEXT,
-            destination_port INTEGER,
-            protocol TEXT,
-            description TEXT
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        source_ip TEXT,
+        source_mac TEXT,
+        destination_ip TEXT,
+        destination_port INTEGER,
+        protocol TEXT,
+        description TEXT,
+        severity TEXT
         )
-        """)
+    """)
 
     conn.commit()
     conn.close()
 
-def log_network_event(event_type, source_ip=None, source_mac=None, destination_ip=None, destination_port=None, protocol=None, description=None):
+def log_network_event(event_type, source_ip=None, source_mac=None, destination_ip=None, destination_port=None, protocol=None, description=None, severity="INFO"):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
     cursor.execute("""
         INSERT INTO network_events
-        (timestamp, event_type, source_ip, source_mac, destination_ip,
-         destination_port, protocol, description)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
+        (
+            timestamp,
+            event_type,
+            source_ip,
+            source_mac,
+            destination_ip,
+            destination_port,
+            protocol,
+            description,
+            severity
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
         datetime.now().isoformat(timespec="seconds"),
         event_type,
         source_ip,
@@ -88,7 +98,8 @@ def log_network_event(event_type, source_ip=None, source_mac=None, destination_i
         destination_ip,
         destination_port,
         protocol,
-        description
+        description,
+        severity
     ))
 
     conn.commit()
@@ -132,6 +143,8 @@ def log_view(source_ip, user_agent):
     conn.commit()
     conn.close()
 
+HONEYPOT_PORTS = {5000}
+
 def process_packet(packet):
     current_time = time.time()
 
@@ -147,69 +160,54 @@ def process_packet(packet):
                 source_ip=src_ip,
                 source_mac=src_mac,
                 protocol="ARP",
-                description=f"New device discovered: {src_ip} ({src_mac})"
+                description=f"New device discovered: {src_ip} ({src_mac})",
+                severity="INFO"
             )
 
-    if packet.haslayer(IP):
-        src_ip = packet[IP].src
-        dst_ip = packet[IP].dst
-        protocol = packet[IP].proto
+    if not (packet.haslayer(IP) and packet.haslayer(TCP)):
+        return
 
-        if dst_ip != HONEYPOT_IP:
-            return
+    src_ip = packet[IP].src
+    dst_ip = packet[IP].dst
+    dst_port = packet[TCP].dport
+    flags = packet[TCP].flags
 
-        if packet.haslayer(TCP):
-            dst_port = packet[TCP].dport
-            flags = packet[TCP].flags
+    if dst_ip != HONEYPOT_IP:
+        return
 
+    if dst_port not in HONEYPOT_PORTS:
+        return
+
+    if flags & 0x02:
+        log_network_event(
+            event_type="Camera Service Probe",
+            source_ip=src_ip,
+            destination_ip=dst_ip,
+            destination_port=dst_port,
+            protocol="TCP",
+            description=f"{src_ip} probed honeypot camera service on port {dst_port}",
+            severity="MEDIUM"
+        )
+
+        syn_activity[src_ip].append(current_time)
+
+        syn_activity[src_ip] = [
+            t for t in syn_activity[src_ip]
+            if current_time - t <= SYN_FLOOD_WINDOW
+        ]
+
+        if len(syn_activity[src_ip]) >= SYN_FLOOD_THRESHOLD:
             log_network_event(
-                event_type="TCP Packet",
+                event_type="Possible SYN Flood",
                 source_ip=src_ip,
                 destination_ip=dst_ip,
                 destination_port=dst_port,
                 protocol="TCP",
-                description=f"TCP traffic from {src_ip} to {dst_ip}:{dst_port}"
+                description=f"{src_ip} sent {len(syn_activity[src_ip])} SYN packets to port {dst_port} within {SYN_FLOOD_WINDOW} seconds",
+                severity="CRITICAL"
             )
 
-            port_activity[src_ip].append((current_time, dst_port))
-
-            port_activity[src_ip] = [
-                entry for entry in port_activity[src_ip]
-                if current_time - entry[0] <= PORT_SCAN_WINDOW
-            ]
-
-            unique_ports = set(port for _, port in port_activity[src_ip])
-
-            if len(unique_ports) >= PORT_SCAN_THRESHOLD:
-                log_network_event(
-                    event_type="Possible Port Scan",
-                    source_ip=src_ip,
-                    destination_ip=dst_ip,
-                    protocol="TCP",
-                    description=f"{src_ip} contacted {len(unique_ports)} ports within {PORT_SCAN_WINDOW} seconds: {sorted(unique_ports)}"
-                )
-
-                port_activity[src_ip].clear()
-
-            if flags == "S":
-                syn_activity[src_ip].append(current_time)
-
-                syn_activity[src_ip] = [
-                    t for t in syn_activity[src_ip]
-                    if current_time - t <= SYN_FLOOD_WINDOW
-                ]
-
-                if len(syn_activity[src_ip]) >= SYN_FLOOD_THRESHOLD:
-                    log_network_event(
-                        event_type="Possible SYN Flood",
-                        source_ip=src_ip,
-                        destination_ip=dst_ip,
-                        destination_port=dst_port,
-                        protocol="TCP",
-                        description=f"{src_ip} sent {len(syn_activity[src_ip])} SYN packets within {SYN_FLOOD_WINDOW} seconds"
-                    )
-
-                    syn_activity[src_ip].clear()
+            syn_activity[src_ip].clear()
 
 def start_scapy_monitor():
     sniff(
